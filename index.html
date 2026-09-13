@@ -1,719 +1,787 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
-<html>
+<!doctype html>
+<html lang="en-NZ">
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <meta http-equiv="Content-Style-Type" content="text/css">
-  <title></title>
-  <meta name="Generator" content="Cocoa HTML Writer">
-  <meta name="CocoaVersion" content="2575.7">
-  <style type="text/css">
-    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
-    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
+  <meta charset="utf-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width,
+             initial-scale=1,
+             maximum-scale=1,
+             user-scalable=no"
+  >
+
+  <title>Three-Student AR Exhibition</title>
+
+  <!-- Three.js -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
+
+  <!-- GLB/GLTF loader -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/loaders/GLTFLoader.js"></script>
+
+  <!-- MindAR -->
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+      color: #fff;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    #ar-container {
+      position: fixed;
+      inset: 0;
+      background: #000;
+    }
+
+    #interface {
+      position: fixed;
+      z-index: 10;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    #header,
+    #status-panel {
+      margin: 16px;
+      padding: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.72);
+      backdrop-filter: blur(8px);
+      pointer-events: auto;
+    }
+
+    #header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+    }
+
+    #header h1 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    #header p {
+      margin: 6px 0 0;
+      color: #d0d0d0;
+      font-size: 14px;
+    }
+
+    #status-panel {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+    }
+
+    #status {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.4;
+    }
+
+    #object-title {
+      display: none;
+      margin: 8px 0 0;
+      color: #77dfff;
+      font-size: 19px;
+    }
+
+    #object-description {
+      display: none;
+      margin: 6px 0 0;
+      color: #d0d0d0;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    #controls {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    button {
+      padding: 10px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.13);
+      color: #fff;
+      cursor: pointer;
+    }
+
+    button:hover,
+    button:focus {
+      outline: 2px solid #77dfff;
+      outline-offset: 2px;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: wait;
+    }
+
+    #start-screen,
+    #error-screen,
+    #fallback-screen {
+      position: fixed;
+      z-index: 30;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(0, 0, 0, 0.86);
+    }
+
+    .card {
+      width: min(500px, 100%);
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 24px;
+      border-radius: 14px;
+      background: #1e1e1e;
+    }
+
+    .card h2 {
+      margin-top: 0;
+    }
+
+    .card p,
+    .card li {
+      color: #d0d0d0;
+      line-height: 1.5;
+    }
+
+    .primary-button {
+      width: 100%;
+      margin-top: 14px;
+      background: #77dfff;
+      color: #071015;
+      font-weight: bold;
+    }
+
+    .secondary-button {
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    #fallback-list article {
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+    #fallback-list p {
+      margin-bottom: 0;
+    }
+
+    .error {
+      color: #ff9b9b !important;
+      white-space: pre-wrap;
+    }
   </style>
 </head>
+
 <body>
-<p class="p1">&lt;!doctype html&gt;</p>
-<p class="p1">&lt;html lang="en-NZ"&gt;</p>
-<p class="p1">&lt;head&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;meta charset="utf-8"&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;meta</p>
-<p class="p1"><span class="Apple-converted-space">    </span>name="viewport"</p>
-<p class="p1"><span class="Apple-converted-space">    </span>content="width=device-width,</p>
-<p class="p1"><span class="Apple-converted-space">             </span>initial-scale=1,</p>
-<p class="p1"><span class="Apple-converted-space">             </span>maximum-scale=1,</p>
-<p class="p1"><span class="Apple-converted-space">             </span>user-scalable=no"</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;title&gt;Three-Student AR Exhibition&lt;/title&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;!-- Three.js --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"&gt;&lt;/script&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;!-- GLB/GLTF loader --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/GLTFLoader.js"&gt;&lt;/script&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;!-- MindAR image tracking --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"&gt;&lt;/script&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;style&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>* {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>box-sizing: border-box;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>html,</p>
-<p class="p1"><span class="Apple-converted-space">    </span>body {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>width: 100%;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>height: 100%;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>margin: 0;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>overflow: hidden;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>background: #000;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>color: white;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>font-family: Arial, Helvetica, sans-serif;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>#ar-container {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>position: fixed;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>inset: 0;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>background: #000;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>#interface {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>position: fixed;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>z-index: 10;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>inset: 0;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>pointer-events: none;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>#header,</p>
-<p class="p1"><span class="Apple-converted-space">    </span>#status-panel {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>margin: 16px;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>padding: 14px;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>border: 1px solid rgba(255, 255, 255, 0.25);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>border-radius: 12px;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>background: rgba(0, 0, 0, 0.72);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>backdrop-filter: blur(8px);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>pointer-events: auto;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>#header {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>position: absolute;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>top: 0;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>left: 0;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>right: 0;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>margin-bottom: 0;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>#header h1 {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>margin: 0;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>font-size: 20px;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>#header p {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>margin: 6px 0 0;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>color: #d0d0d0;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>font-size: 14px;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>#status-panel {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>position: absolute;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>right: 0;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>bottom: 0;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>left: 0;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>#status {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>margin: 0;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>font-size: 15px;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>line-height: 1.4;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>#object-title {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>display: none;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>margin: 8px 0 0;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>color: #77dfff;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>font-size: 19px;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>#object-description {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>display: none;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>margin: 6px 0 0;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>color: #d0d0d0;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>font-size: 14px;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>line-height: 1.4;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>#controls {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>display: flex;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>gap: 8px;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>margin-top: 12px;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>button {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>padding: 10px 14px;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>border: 1px solid rgba(255, 255, 255, 0.3);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>border-radius: 8px;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>background: rgba(255, 255, 255, 0.13);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>color: white;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>cursor: pointer;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>button:hover,</p>
-<p class="p1"><span class="Apple-converted-space">    </span>button:focus {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>outline: 2px solid #77dfff;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>outline-offset: 2px;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>#start-screen,</p>
-<p class="p1"><span class="Apple-converted-space">    </span>#error-screen,</p>
-<p class="p1"><span class="Apple-converted-space">    </span>#fallback-screen {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>position: fixed;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>z-index: 30;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>inset: 0;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>display: flex;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>align-items: center;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>justify-content: center;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>padding: 24px;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>background: rgba(0, 0, 0, 0.85);</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>.card {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>width: min(500px, 100%);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>padding: 24px;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>border-radius: 14px;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>background: #1e1e1e;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>.card h2 {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>margin-top: 0;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>.card p,</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.card li {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>color: #d0d0d0;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>line-height: 1.5;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>.primary-button {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>width: 100%;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>margin-top: 14px;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>background: #77dfff;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>color: #071015;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>font-weight: bold;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>.secondary-button {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>width: 100%;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>margin-top: 10px;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>.hidden {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>display: none !important;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>#fallback-list article {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>padding: 10px 0;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>border-bottom: 1px solid rgba(255, 255, 255, 0.16);</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>#fallback-list p {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>margin-bottom: 0;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;/style&gt;</p>
-<p class="p1">&lt;/head&gt;</p>
-<p class="p2"><br></p>
-<p class="p1">&lt;body&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;div id="ar-container"&gt;&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;div id="interface"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;header id="header"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;h1&gt;Three-Student AR Exhibition&lt;/h1&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>Point your camera at the visual trigger on an exhibition object.</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/header&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;section id="status-panel" aria-live="polite"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;p id="status"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>Ready to start.</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/p&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;h2 id="object-title"&gt;&lt;/h2&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;p id="object-description"&gt;&lt;/p&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div id="controls"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;button id="pause-button" type="button"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>Pause animation</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/button&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;button id="restart-button" type="button"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>Restart animation</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/section&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;!-- Start screen --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;section id="start-screen"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="card"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;h2&gt;View the exhibition in AR&lt;/h2&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>Allow camera access, then point your phone at one of the</p>
-<p class="p1"><span class="Apple-converted-space">        </span>exhibition object's visual triggers.</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/p&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;ol&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;li&gt;Press “Start camera”.&lt;/li&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;li&gt;Allow camera access.&lt;/li&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;li&gt;Point the phone at a target image or label.&lt;/li&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/ol&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;button id="start-button" class="primary-button" type="button"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>Start camera</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/button&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;button id="show-fallback-button" class="secondary-button" type="button"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>View exhibition information</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;/section&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;!-- Error screen --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;section id="error-screen" class="hidden"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="card"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;h2&gt;Camera could not start&lt;/h2&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;p id="error-message"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>Check that camera access has been allowed.</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/p&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;button id="retry-button" class="primary-button" type="button"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>Try again</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/button&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;button id="error-fallback-button" class="secondary-button" type="button"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>View exhibition information</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;/section&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;!-- Non-AR fallback --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;section id="fallback-screen" class="hidden"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="card"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;h2&gt;Exhibition information&lt;/h2&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div id="fallback-list"&gt;&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;button id="close-fallback-button" class="primary-button" type="button"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>Return</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;/section&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;script&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>/*</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* ============================================================</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* STUDENT DATA</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* ============================================================</p>
-<p class="p1"><span class="Apple-converted-space">     </span>*</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* The order here must match the target order in</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* exhibition-targets.mind.</p>
-<p class="p1"><span class="Apple-converted-space">     </span>*/</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>const students = [</p>
-<p class="p1"><span class="Apple-converted-space">      </span>{</p>
-<p class="p1"><span class="Apple-converted-space">        </span>name: "Student 1",</p>
-<p class="p1"><span class="Apple-converted-space">        </span>title: "Object One",</p>
-<p class="p1"><span class="Apple-converted-space">        </span>description: "Description of Student 1's object.",</p>
-<p class="p1"><span class="Apple-converted-space">        </span>model: "./models/student-01.glb",</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>// Adjust these three values when testing.</p>
-<p class="p1"><span class="Apple-converted-space">        </span>scale: 0.20,</p>
-<p class="p1"><span class="Apple-converted-space">        </span>position: [0, 0, 0],</p>
-<p class="p1"><span class="Apple-converted-space">        </span>rotation: [0, 0, 0]</p>
-<p class="p1"><span class="Apple-converted-space">      </span>},</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>{</p>
-<p class="p1"><span class="Apple-converted-space">        </span>name: "Student 2",</p>
-<p class="p1"><span class="Apple-converted-space">        </span>title: "Object Two",</p>
-<p class="p1"><span class="Apple-converted-space">        </span>description: "Description of Student 2's object.",</p>
-<p class="p1"><span class="Apple-converted-space">        </span>model: "./models/student-02.glb",</p>
-<p class="p1"><span class="Apple-converted-space">        </span>scale: 0.20,</p>
-<p class="p1"><span class="Apple-converted-space">        </span>position: [0, 0, 0],</p>
-<p class="p1"><span class="Apple-converted-space">        </span>rotation: [0, 0, 0]</p>
-<p class="p1"><span class="Apple-converted-space">      </span>},</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>{</p>
-<p class="p1"><span class="Apple-converted-space">        </span>name: "Student 3",</p>
-<p class="p1"><span class="Apple-converted-space">        </span>title: "Object Three",</p>
-<p class="p1"><span class="Apple-converted-space">        </span>description: "Description of Student 3's object.",</p>
-<p class="p1"><span class="Apple-converted-space">        </span>model: "./models/student-03.glb",</p>
-<p class="p1"><span class="Apple-converted-space">        </span>scale: 0.20,</p>
-<p class="p1"><span class="Apple-converted-space">        </span>position: [0, 0, 0],</p>
-<p class="p1"><span class="Apple-converted-space">        </span>rotation: [0, 0, 0]</p>
-<p class="p1"><span class="Apple-converted-space">      </span>}</p>
-<p class="p1"><span class="Apple-converted-space">    </span>];</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>let mindarThree;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>let anchors = [];</p>
-<p class="p1"><span class="Apple-converted-space">    </span>let mixers = [];</p>
-<p class="p1"><span class="Apple-converted-space">    </span>let actions = [];</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>let activeTarget = null;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>let animationPaused = false;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>const clock = new THREE.Clock();</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>const startScreen =</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.querySelector("#start-screen");</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>const errorScreen =</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.querySelector("#error-screen");</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>const fallbackScreen =</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.querySelector("#fallback-screen");</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>const status =</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.querySelector("#status");</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>const objectTitle =</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.querySelector("#object-title");</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>const objectDescription =</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.querySelector("#object-description");</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>const errorMessage =</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.querySelector("#error-message");</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>const fallbackList =</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.querySelector("#fallback-list");</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>const startButton =</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.querySelector("#start-button");</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>const retryButton =</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.querySelector("#retry-button");</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>const pauseButton =</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.querySelector("#pause-button");</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>const restartButton =</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.querySelector("#restart-button");</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>/*</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* ============================================================</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* FALLBACK INFORMATION</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* ============================================================</p>
-<p class="p1"><span class="Apple-converted-space">     </span>*/</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>function createFallbackInformation() {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>students.forEach((student, index) =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const article = document.createElement("article");</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>article.innerHTML = `</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;strong&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>${index + 1}. ${student.name}: ${student.title}</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/strong&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;p&gt;${student.description}&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>`;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>fallbackList.appendChild(article);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>});</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>createFallbackInformation();</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>/*</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* ============================================================</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* USER INTERFACE</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* ============================================================</p>
-<p class="p1"><span class="Apple-converted-space">     </span>*/</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>function showObjectInformation(index) {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const student = students[index];</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>activeTarget = index;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>objectTitle.textContent =</p>
-<p class="p1"><span class="Apple-converted-space">        </span>`${student.name}: ${student.title}`;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>objectDescription.textContent =</p>
-<p class="p1"><span class="Apple-converted-space">        </span>student.description;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>objectTitle.style.display = "block";</p>
-<p class="p1"><span class="Apple-converted-space">      </span>objectDescription.style.display = "block";</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>status.textContent =</p>
-<p class="p1"><span class="Apple-converted-space">        </span>"Object detected — animation playing.";</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>function hideObjectInformation() {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>activeTarget = null;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>objectTitle.textContent = "";</p>
-<p class="p1"><span class="Apple-converted-space">      </span>objectDescription.textContent = "";</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>objectTitle.style.display = "none";</p>
-<p class="p1"><span class="Apple-converted-space">      </span>objectDescription.style.display = "none";</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>status.textContent =</p>
-<p class="p1"><span class="Apple-converted-space">        </span>"Point your phone at a visual trigger.";</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>function showFallback() {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>fallbackScreen.classList.remove("hidden");</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>function hideFallback() {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>fallbackScreen.classList.add("hidden");</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>/*</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* ============================================================</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* CREATE AR SCENE</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* ============================================================</p>
-<p class="p1"><span class="Apple-converted-space">     </span>*/</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>function createScene() {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>mindarThree = new MindARThree({</p>
-<p class="p1"><span class="Apple-converted-space">        </span>container: document.querySelector("#ar-container"),</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>/*</p>
-<p class="p1"><span class="Apple-converted-space">         </span>* This file must contain three image targets.</p>
-<p class="p1"><span class="Apple-converted-space">         </span>*/</p>
-<p class="p1"><span class="Apple-converted-space">        </span>imageTargetSrc: "./exhibition-targets.mind",</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>/*</p>
-<p class="p1"><span class="Apple-converted-space">         </span>* Allows the system to track up to three targets.</p>
-<p class="p1"><span class="Apple-converted-space">         </span>*/</p>
-<p class="p1"><span class="Apple-converted-space">        </span>maxTrack: 3</p>
-<p class="p1"><span class="Apple-converted-space">      </span>});</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>const renderer = mindarThree.renderer;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const scene = mindarThree.scene;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const camera = mindarThree.camera;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>renderer.outputColorSpace = THREE.SRGBColorSpace;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>renderer.setPixelRatio(</p>
-<p class="p1"><span class="Apple-converted-space">        </span>Math.min(window.devicePixelRatio || 1, 2)</p>
-<p class="p1"><span class="Apple-converted-space">      </span>);</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>/*</p>
-<p class="p1"><span class="Apple-converted-space">       </span>* Lighting for the 3D models.</p>
-<p class="p1"><span class="Apple-converted-space">       </span>*/</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const hemisphereLight = new THREE.HemisphereLight(</p>
-<p class="p1"><span class="Apple-converted-space">        </span>0xffffff,</p>
-<p class="p1"><span class="Apple-converted-space">        </span>0x444444,</p>
-<p class="p1"><span class="Apple-converted-space">        </span>2</p>
-<p class="p1"><span class="Apple-converted-space">      </span>);</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>scene.add(hemisphereLight);</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>const directionalLight = new THREE.DirectionalLight(</p>
-<p class="p1"><span class="Apple-converted-space">        </span>0xffffff,</p>
-<p class="p1"><span class="Apple-converted-space">        </span>2</p>
-<p class="p1"><span class="Apple-converted-space">      </span>);</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>directionalLight.position.set(1, 3, 2);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>scene.add(directionalLight);</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>/*</p>
-<p class="p1"><span class="Apple-converted-space">       </span>* Create one anchor for each of the three targets.</p>
-<p class="p1"><span class="Apple-converted-space">       </span>*/</p>
-<p class="p1"><span class="Apple-converted-space">      </span>anchors = students.map((student, index) =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const anchor = mindarThree.addAnchor(index);</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>anchor.onTargetFound = () =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">          </span>showObjectInformation(index);</p>
-<p class="p1"><span class="Apple-converted-space">        </span>};</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>anchor.onTargetLost = () =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">          </span>if (activeTarget === index) {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>hideObjectInformation();</p>
-<p class="p1"><span class="Apple-converted-space">          </span>}</p>
-<p class="p1"><span class="Apple-converted-space">        </span>};</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>return anchor;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>});</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>loadModels();</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>/*</p>
-<p class="p1"><span class="Apple-converted-space">       </span>* Render loop.</p>
-<p class="p1"><span class="Apple-converted-space">       </span>*/</p>
-<p class="p1"><span class="Apple-converted-space">      </span>renderer.setAnimationLoop(() =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const delta = clock.getDelta();</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>if (!animationPaused) {</p>
-<p class="p1"><span class="Apple-converted-space">          </span>mixers.forEach((mixer) =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>if (mixer) {</p>
-<p class="p1"><span class="Apple-converted-space">              </span>mixer.update(delta);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>}</p>
-<p class="p1"><span class="Apple-converted-space">          </span>});</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>renderer.render(scene, camera);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>});</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>/*</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* ============================================================</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* LOAD THREE GLB MODELS</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* ============================================================</p>
-<p class="p1"><span class="Apple-converted-space">     </span>*/</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>function loadModels() {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const loader = new THREE.GLTFLoader();</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>mixers = new Array(students.length).fill(null);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>actions = new Array(students.length).fill(null);</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>students.forEach((student, index) =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>loader.load(</p>
-<p class="p1"><span class="Apple-converted-space">          </span>student.model,</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">          </span>(gltf) =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>const model = gltf.scene;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">            </span>model.scale.set(</p>
-<p class="p1"><span class="Apple-converted-space">              </span>student.scale,</p>
-<p class="p1"><span class="Apple-converted-space">              </span>student.scale,</p>
-<p class="p1"><span class="Apple-converted-space">              </span>student.scale</p>
-<p class="p1"><span class="Apple-converted-space">            </span>);</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">            </span>model.position.set(</p>
-<p class="p1"><span class="Apple-converted-space">              </span>student.position[0],</p>
-<p class="p1"><span class="Apple-converted-space">              </span>student.position[1],</p>
-<p class="p1"><span class="Apple-converted-space">              </span>student.position[2]</p>
-<p class="p1"><span class="Apple-converted-space">            </span>);</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">            </span>model.rotation.set(</p>
-<p class="p1"><span class="Apple-converted-space">              </span>student.rotation[0],</p>
-<p class="p1"><span class="Apple-converted-space">              </span>student.rotation[1],</p>
-<p class="p1"><span class="Apple-converted-space">              </span>student.rotation[2]</p>
-<p class="p1"><span class="Apple-converted-space">            </span>);</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">            </span>anchors[index].group.add(model);</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">            </span>/*</p>
-<p class="p1"><span class="Apple-converted-space">             </span>* Play the first animation in the GLB file.</p>
-<p class="p1"><span class="Apple-converted-space">             </span>*/</p>
-<p class="p1"><span class="Apple-converted-space">            </span>if (gltf.animations.length &gt; 0) {</p>
-<p class="p1"><span class="Apple-converted-space">              </span>const mixer = new THREE.AnimationMixer(model);</p>
-<p class="p1"><span class="Apple-converted-space">              </span>const action = mixer.clipAction(gltf.animations[0]);</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">              </span>action.play();</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">              </span>mixers[index] = mixer;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>actions[index] = action;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>} else {</p>
-<p class="p1"><span class="Apple-converted-space">              </span>console.warn(</p>
-<p class="p1"><span class="Apple-converted-space">                </span>`${student.model} contains no animation.`</p>
-<p class="p1"><span class="Apple-converted-space">              </span>);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>}</p>
-<p class="p1"><span class="Apple-converted-space">          </span>},</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">          </span>undefined,</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">          </span>(error) =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>console.error(</p>
-<p class="p1"><span class="Apple-converted-space">              </span>`Could not load ${student.model}:`,</p>
-<p class="p1"><span class="Apple-converted-space">              </span>error</p>
-<p class="p1"><span class="Apple-converted-space">            </span>);</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">            </span>status.textContent =</p>
-<p class="p1"><span class="Apple-converted-space">              </span>`Could not load ${student.name}'s model.`;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>}</p>
-<p class="p1"><span class="Apple-converted-space">        </span>);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>});</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>/*</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* ============================================================</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* START CAMERA</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* ============================================================</p>
-<p class="p1"><span class="Apple-converted-space">     </span>*/</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>async function startAR() {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>startButton.disabled = true;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>retryButton.disabled = true;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>status.textContent = "Starting camera…";</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>try {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>if (!mindarThree) {</p>
-<p class="p1"><span class="Apple-converted-space">          </span>createScene();</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>await mindarThree.start();</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>startScreen.classList.add("hidden");</p>
-<p class="p1"><span class="Apple-converted-space">        </span>errorScreen.classList.add("hidden");</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>status.textContent =</p>
-<p class="p1"><span class="Apple-converted-space">          </span>"Camera active. Point at a visual trigger.";</p>
-<p class="p1"><span class="Apple-converted-space">      </span>} catch (error) {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>console.error(error);</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>let message =</p>
-<p class="p1"><span class="Apple-converted-space">          </span>"Camera access was blocked or unavailable.";</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>if (</p>
-<p class="p1"><span class="Apple-converted-space">          </span>location.protocol !== "https:" &amp;&amp;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>location.hostname !== "localhost"</p>
-<p class="p1"><span class="Apple-converted-space">        </span>) {</p>
-<p class="p1"><span class="Apple-converted-space">          </span>message +=</p>
-<p class="p1"><span class="Apple-converted-space">            </span>"\n\nThe website must use HTTPS.";</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>if (error.message) {</p>
-<p class="p1"><span class="Apple-converted-space">          </span>message += `\n\n${error.message}`;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>errorMessage.textContent = message;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>errorScreen.classList.remove("hidden");</p>
-<p class="p1"><span class="Apple-converted-space">      </span>} finally {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>startButton.disabled = false;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>retryButton.disabled = false;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>}</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>/*</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* ============================================================</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* ANIMATION BUTTONS</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* ============================================================</p>
-<p class="p1"><span class="Apple-converted-space">     </span>*/</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>pauseButton.addEventListener("click", () =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>animationPaused = !animationPaused;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>pauseButton.textContent = animationPaused</p>
-<p class="p1"><span class="Apple-converted-space">        </span>? "Play animation"</p>
-<p class="p1"><span class="Apple-converted-space">        </span>: "Pause animation";</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>status.textContent = animationPaused</p>
-<p class="p1"><span class="Apple-converted-space">        </span>? "Animation paused."</p>
-<p class="p1"><span class="Apple-converted-space">        </span>: "Animation playing.";</p>
-<p class="p1"><span class="Apple-converted-space">    </span>});</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>restartButton.addEventListener("click", () =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>actions.forEach((action) =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>if (action) {</p>
-<p class="p1"><span class="Apple-converted-space">          </span>action.reset();</p>
-<p class="p1"><span class="Apple-converted-space">          </span>action.play();</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p1"><span class="Apple-converted-space">      </span>});</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>animationPaused = false;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>pauseButton.textContent = "Pause animation";</p>
-<p class="p1"><span class="Apple-converted-space">      </span>status.textContent = "Animations restarted.";</p>
-<p class="p1"><span class="Apple-converted-space">    </span>});</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>/*</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* ============================================================</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* BUTTON EVENTS</p>
-<p class="p1"><span class="Apple-converted-space">     </span>* ============================================================</p>
-<p class="p1"><span class="Apple-converted-space">     </span>*/</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>startButton.addEventListener("click", startAR);</p>
-<p class="p1"><span class="Apple-converted-space">    </span>retryButton.addEventListener("click", startAR);</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>document</p>
-<p class="p1"><span class="Apple-converted-space">      </span>.querySelector("#show-fallback-button")</p>
-<p class="p1"><span class="Apple-converted-space">      </span>.addEventListener("click", showFallback);</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>document</p>
-<p class="p1"><span class="Apple-converted-space">      </span>.querySelector("#error-fallback-button")</p>
-<p class="p1"><span class="Apple-converted-space">      </span>.addEventListener("click", showFallback);</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>document</p>
-<p class="p1"><span class="Apple-converted-space">      </span>.querySelector("#close-fallback-button")</p>
-<p class="p1"><span class="Apple-converted-space">      </span>.addEventListener("click", hideFallback);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;/script&gt;</p>
-<p class="p1">&lt;/body&gt;</p>
-<p class="p1">&lt;/html&gt;</p>
+  <div id="ar-container"></div>
+
+  <div id="interface">
+    <header id="header">
+      <h1>Three-Student AR Exhibition</h1>
+      <p>
+        Point your camera at the visual trigger on an exhibition object.
+      </p>
+    </header>
+
+    <section id="status-panel" aria-live="polite">
+      <p id="status">Ready to start.</p>
+
+      <h2 id="object-title"></h2>
+      <p id="object-description"></p>
+
+      <div id="controls">
+        <button id="pause-button" type="button">
+          Pause animation
+        </button>
+
+        <button id="restart-button" type="button">
+          Restart animation
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <!-- Start screen -->
+  <section id="start-screen">
+    <div class="card">
+      <h2>View the exhibition in AR</h2>
+
+      <p>
+        Allow camera access, then point your phone at one of the
+        exhibition object's visual triggers.
+      </p>
+
+      <ol>
+        <li>Press “Start camera”.</li>
+        <li>Allow camera access.</li>
+        <li>Point the phone at a target image or label.</li>
+      </ol>
+
+      <button id="start-button" class="primary-button" type="button">
+        Start camera
+      </button>
+
+      <button
+        id="show-fallback-button"
+        class="secondary-button"
+        type="button"
+      >
+        View exhibition information
+      </button>
+    </div>
+  </section>
+
+  <!-- Error screen -->
+  <section id="error-screen" class="hidden">
+    <div class="card">
+      <h2>Camera could not start</h2>
+
+      <p id="error-message" class="error">
+        Check that camera access has been allowed.
+      </p>
+
+      <button id="retry-button" class="primary-button" type="button">
+        Try again
+      </button>
+
+      <button
+        id="error-fallback-button"
+        class="secondary-button"
+        type="button"
+      >
+        View exhibition information
+      </button>
+    </div>
+  </section>
+
+  <!-- Non-AR fallback -->
+  <section id="fallback-screen" class="hidden">
+    <div class="card">
+      <h2>Exhibition information</h2>
+
+      <div id="fallback-list"></div>
+
+      <button
+        id="close-fallback-button"
+        class="primary-button"
+        type="button"
+      >
+        Return
+      </button>
+    </div>
+  </section>
+
+  <script>
+    /*
+     * ============================================================
+     * Check that the required libraries loaded
+     * ============================================================
+     */
+
+    if (!window.THREE) {
+      throw new Error(
+        "Three.js did not load. Check your internet connection."
+      );
+    }
+
+    if (!window.THREE.GLTFLoader) {
+      throw new Error(
+        "GLTFLoader did not load. Check the script URL."
+      );
+    }
+
+    if (!window.MINDAR || !window.MINDAR.IMAGE) {
+      throw new Error(
+        "MindAR did not load. Check the MindAR script URL."
+      );
+    }
+
+    /*
+     * This is the correct MindAR Three.js constructor.
+     */
+    const { MindARThree } = window.MINDAR.IMAGE;
+
+    /*
+     * ============================================================
+     * Student data
+     * ============================================================
+     *
+     * The order must match the target order inside
+     * exhibition-targets.mind:
+     *
+     * Target 0 = Student 1
+     * Target 1 = Student 2
+     * Target 2 = Student 3
+     */
+
+    const students = [
+      {
+        name: "Student 1",
+        title: "Object One",
+        description: "Description of Student 1's object.",
+        model: "./models/student-01.glb",
+
+        scale: 0.20,
+        position: [0, 0, 0],
+        rotation: [0, 0, 0]
+      },
+
+      {
+        name: "Student 2",
+        title: "Object Two",
+        description: "Description of Student 2's object.",
+        model: "./models/student-02.glb",
+
+        scale: 0.20,
+        position: [0, 0, 0],
+        rotation: [0, 0, 0]
+      },
+
+      {
+        name: "Student 3",
+        title: "Object Three",
+        description: "Description of Student 3's object.",
+        model: "./models/student-03.glb",
+
+        scale: 0.20,
+        position: [0, 0, 0],
+        rotation: [0, 0, 0]
+      }
+    ];
+
+    /*
+     * ============================================================
+     * Application state
+     * ============================================================
+     */
+
+    let mindarThree = null;
+    let anchors = [];
+    let mixers = [];
+    let actions = [];
+    let activeTarget = null;
+    let animationPaused = false;
+
+    const clock = new THREE.Clock();
+
+    /*
+     * ============================================================
+     * Interface elements
+     * ============================================================
+     */
+
+    const startScreen =
+      document.querySelector("#start-screen");
+
+    const errorScreen =
+      document.querySelector("#error-screen");
+
+    const fallbackScreen =
+      document.querySelector("#fallback-screen");
+
+    const status =
+      document.querySelector("#status");
+
+    const objectTitle =
+      document.querySelector("#object-title");
+
+    const objectDescription =
+      document.querySelector("#object-description");
+
+    const errorMessage =
+      document.querySelector("#error-message");
+
+    const fallbackList =
+      document.querySelector("#fallback-list");
+
+    const startButton =
+      document.querySelector("#start-button");
+
+    const retryButton =
+      document.querySelector("#retry-button");
+
+    const pauseButton =
+      document.querySelector("#pause-button");
+
+    const restartButton =
+      document.querySelector("#restart-button");
+
+    /*
+     * ============================================================
+     * Fallback information
+     * ============================================================
+     */
+
+    function createFallbackInformation() {
+      students.forEach((student, index) => {
+        const article = document.createElement("article");
+
+        const heading = document.createElement("strong");
+        heading.textContent =
+          `${index + 1}. ${student.name}: ${student.title}`;
+
+        const paragraph = document.createElement("p");
+        paragraph.textContent = student.description;
+
+        article.appendChild(heading);
+        article.appendChild(paragraph);
+        fallbackList.appendChild(article);
+      });
+    }
+
+    createFallbackInformation();
+
+    /*
+     * ============================================================
+     * User interface functions
+     * ============================================================
+     */
+
+    function showObjectInformation(index) {
+      const student = students[index];
+
+      if (!student) {
+        return;
+      }
+
+      activeTarget = index;
+
+      objectTitle.textContent =
+        `${student.name}: ${student.title}`;
+
+      objectDescription.textContent =
+        student.description;
+
+      objectTitle.style.display = "block";
+      objectDescription.style.display = "block";
+
+      status.textContent =
+        "Object detected — animation playing.";
+    }
+
+    function hideObjectInformation() {
+      activeTarget = null;
+
+      objectTitle.textContent = "";
+      objectDescription.textContent = "";
+
+      objectTitle.style.display = "none";
+      objectDescription.style.display = "none";
+
+      status.textContent =
+        "Point your phone at a visual trigger.";
+    }
+
+    function showFallback() {
+      fallbackScreen.classList.remove("hidden");
+    }
+
+    function hideFallback() {
+      fallbackScreen.classList.add("hidden");
+    }
+
+    function showError(error) {
+      let message =
+        "Camera access was blocked or unavailable.";
+
+      if (
+        location.protocol !== "https:" &&
+        location.hostname !== "localhost"
+      ) {
+        message +=
+          "\n\nThis website must be hosted using HTTPS.";
+      }
+
+      if (error && error.message) {
+        message += `\n\nTechnical message: ${error.message}`;
+      }
+
+      errorMessage.textContent = message;
+      errorScreen.classList.remove("hidden");
+    }
+
+    /*
+     * ============================================================
+     * Create the AR scene
+     * ============================================================
+     */
+
+    function createScene() {
+      mindarThree = new MindARThree({
+        container: document.querySelector("#ar-container"),
+
+        /*
+         * This file must be in the same folder as index.html.
+         */
+        imageTargetSrc: "./exhibition-targets.mind",
+
+        /*
+         * One object at a time is more reliable on phones.
+         * The target file can still contain three targets.
+         */
+        maxTrack: 1
+      });
+
+      const renderer = mindarThree.renderer;
+      const scene = mindarThree.scene;
+      const camera = mindarThree.camera;
+
+      renderer.setPixelRatio(
+        Math.min(window.devicePixelRatio || 1, 2)
+      );
+
+      /*
+       * This property is available in recent Three.js versions.
+       */
+      if ("outputColorSpace" in renderer) {
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+      }
+
+      /*
+       * Lighting
+       */
+      const hemisphereLight = new THREE.HemisphereLight(
+        0xffffff,
+        0x444444,
+        2
+      );
+
+      scene.add(hemisphereLight);
+
+      const directionalLight = new THREE.DirectionalLight(
+        0xffffff,
+        2
+      );
+
+      directionalLight.position.set(1, 3, 2);
+      scene.add(directionalLight);
+
+      /*
+       * Create one anchor for each target.
+       */
+      anchors = students.map((student, index) => {
+        const anchor = mindarThree.addAnchor(index);
+
+        anchor.onTargetFound = () => {
+          showObjectInformation(index);
+        };
+
+        anchor.onTargetLost = () => {
+          if (activeTarget === index) {
+            hideObjectInformation();
+          }
+        };
+
+        return anchor;
+      });
+
+      loadModels();
+
+      /*
+       * Render loop
+       */
+      renderer.setAnimationLoop(() => {
+        const delta = clock.getDelta();
+
+        if (!animationPaused) {
+          mixers.forEach((mixer) => {
+            if (mixer) {
+              mixer.update(delta);
+            }
+          });
+        }
+
+        renderer.render(scene, camera);
+      });
+    }
+
+    /*
+     * ============================================================
+     * Load the three GLB models
+     * ============================================================
+     */
+
+    function loadModels() {
+      const loader = new THREE.GLTFLoader();
+
+      mixers = new Array(students.length).fill(null);
+      actions = new Array(students.length).fill(null);
+
+      students.forEach((student, index) => {
+        loader.load(
+          student.model,
+
+          (gltf) => {
+            const model = gltf.scene;
+
+            model.scale.set(
+              student.scale,
+              student.scale,
+              student.scale
+            );
+
+            model.position.set(
+              student.position[0],
+              student.position[1],
+              student.position[2]
+            );
+
+            model.rotation.set(
+              student.rotation[0],
+              student.rotation[1],
+              student.rotation[2]
+            );
+
+            anchors[index].group.add(model);
+
+            /*
+             * Play the first animation embedded in the GLB.
+             */
+            if (
+              gltf.animations &&
+              gltf.animations.length > 0
+            ) {
+              const mixer = new THREE.AnimationMixer(model);
+              const action =
+                mixer.clipAction(gltf.animations[0]);
+
+              action.play();
+
+              mixers[index] = mixer;
+              actions[index] = action;
+            } else {
+              console.warn(
+                `${student.model} contains no animation.`
+              );
+            }
+          },
+
+          undefined,
+
+          (error) => {
+            console.error(
+              `Could not load ${student.model}:`,
+              error
+            );
+
+            status.textContent =
+              `Could not load ${student.name}'s model.`;
+          }
+        );
+      });
+    }
+
+    /*
+     * ============================================================
+     * Start AR
+     * ============================================================
+     */
+
+    async function startAR() {
+      startButton.disabled = true;
+      retryButton.disabled = true;
+
+      status.textContent = "Starting camera…";
+
+      try {
+        if (!mindarThree) {
+          createScene();
+        }
+
+        await mindarThree.start();
+
+        startScreen.classList.add("hidden");
+        errorScreen.classList.add("hidden");
+
+        status.textContent =
+          "Camera active. Point at a visual trigger.";
+      } catch (error) {
+        console.error(error);
+        showError(error);
+      } finally {
+        startButton.disabled = false;
+        retryButton.disabled = false;
+      }
+    }
+
+    /*
+     * ============================================================
+     * Animation controls
+     * ============================================================
+     */
+
+    pauseButton.addEventListener("click", () => {
+      animationPaused = !animationPaused;
+
+      pauseButton.textContent = animationPaused
+        ? "Play animation"
+        : "Pause animation";
+
+      status.textContent = animationPaused
+        ? "Animation paused."
+        : "Animation playing.";
+    });
+
+    restartButton.addEventListener("click", () => {
+      actions.forEach((action) => {
+        if (action) {
+          action.reset();
+          action.play();
+        }
+      });
+
+      animationPaused = false;
+      pauseButton.textContent = "Pause animation";
+      status.textContent = "Animations restarted.";
+    });
+
+    /*
+     * ============================================================
+     * Button events
+     * ============================================================
+     */
+
+    startButton.addEventListener("click", startAR);
+    retryButton.addEventListener("click", startAR);
+
+    document
+      .querySelector("#show-fallback-button")
+      .addEventListener("click", showFallback);
+
+    document
+      .querySelector("#error-fallback-button")
+      .addEventListener("click", showFallback);
+
+    document
+      .querySelector("#close-fallback-button")
+      .addEventListener("click", hideFallback);
+  </script>
 </body>
 </html>
