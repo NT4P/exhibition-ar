@@ -2,7 +2,6 @@
 <html lang="en-NZ">
 <head>
   <meta charset="utf-8">
-
   <meta
     name="viewport"
     content="width=device-width,
@@ -10,23 +9,25 @@
              maximum-scale=1,
              user-scalable=no"
   >
-
   <title>Three-Student AR Exhibition</title>
 
-  <!-- Three.js -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
+  <!-- Import map: pins matching, tested versions of three.js and its addons -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
 
-  <!-- GLB/GLTF model loader -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/loaders/GLTFLoader.js"></script>
-
-  <!-- MindAR image tracking -->
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"></script>
+  <!-- MindAR image tracking (ES module build, matches three@0.160 line) -->
+  <script type="module" src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"></script>
 
   <style>
     * {
       box-sizing: border-box;
     }
-
     html,
     body {
       width: 100%;
@@ -37,11 +38,9 @@
       color: #fff;
       font-family: Arial, Helvetica, sans-serif;
     }
-
     body {
       touch-action: manipulation;
     }
-
     #ar-container {
       position: fixed;
       z-index: 1;
@@ -50,17 +49,12 @@
       height: 100%;
       background: #000;
     }
-
-    /*
-     * The general interface does not block the camera view.
-     */
     #interface {
       position: fixed;
       z-index: 10;
       inset: 0;
       pointer-events: none;
     }
-
     #header,
     #status-panel {
       border: 1px solid rgba(255, 255, 255, 0.25);
@@ -68,7 +62,6 @@
       background: rgba(0, 0, 0, 0.75);
       backdrop-filter: blur(8px);
     }
-
     #header {
       position: absolute;
       top: 16px;
@@ -76,20 +69,17 @@
       right: 16px;
       padding: 14px;
     }
-
     #header h1 {
       margin: 0;
       font-size: 20px;
       line-height: 1.2;
     }
-
     #header p {
       margin: 6px 0 0;
       color: #d0d0d0;
       font-size: 14px;
       line-height: 1.4;
     }
-
     #status-panel {
       position: absolute;
       right: 16px;
@@ -98,13 +88,11 @@
       padding: 14px;
       pointer-events: auto;
     }
-
     #status {
       margin: 0;
       font-size: 15px;
       line-height: 1.4;
     }
-
     #object-title {
       display: none;
       margin: 8px 0 0;
@@ -112,7 +100,6 @@
       font-size: 19px;
       line-height: 1.3;
     }
-
     #object-description {
       display: none;
       margin: 6px 0 0;
@@ -120,14 +107,12 @@
       font-size: 14px;
       line-height: 1.4;
     }
-
     #controls {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       margin-top: 12px;
     }
-
     button {
       min-height: 44px;
       padding: 10px 14px;
@@ -140,21 +125,15 @@
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
     }
-
     button:hover,
     button:focus {
       outline: 2px solid #77dfff;
       outline-offset: 2px;
     }
-
     button:disabled {
       opacity: 0.55;
       cursor: wait;
     }
-
-    /*
-     * These screens must sit above the AR canvas and receive taps.
-     */
     #start-screen,
     #error-screen,
     #fallback-screen {
@@ -168,7 +147,6 @@
       background: rgba(0, 0, 0, 0.88);
       pointer-events: auto;
     }
-
     #start-screen button,
     #error-screen button,
     #fallback-screen button {
@@ -177,7 +155,6 @@
       width: 100%;
       pointer-events: auto;
     }
-
     .card {
       width: min(500px, 100%);
       max-height: 90vh;
@@ -187,696 +164,13 @@
       background: #1e1e1e;
       box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
     }
-
     .card h2 {
       margin-top: 0;
       line-height: 1.25;
     }
-
     .card p,
     .card li {
       color: #d0d0d0;
       line-height: 1.5;
     }
-
     .primary-button {
-      margin-top: 14px;
-      background: #77dfff;
-      color: #071015;
-      font-weight: bold;
-    }
-
-    .secondary-button {
-      margin-top: 10px;
-    }
-
-    .error-text {
-      color: #ffabab !important;
-      white-space: pre-wrap;
-    }
-
-    #fallback-list article {
-      padding: 12px 0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.16);
-    }
-
-    #fallback-list article:last-child {
-      border-bottom: 0;
-    }
-
-    #fallback-list p {
-      margin-bottom: 0;
-    }
-
-    .hidden {
-      display: none !important;
-    }
-
-    @media (min-width: 700px) {
-      #status-panel {
-        max-width: 480px;
-      }
-    }
-  </style>
-</head>
-
-<body>
-
-  <!-- Camera and AR scene are rendered here -->
-  <div id="ar-container"></div>
-
-  <!-- Interface shown during AR -->
-  <div id="interface">
-    <header id="header">
-      <h1>Three-Student AR Exhibition</h1>
-      <p>
-        Point your phone at the visual trigger on an exhibition object.
-      </p>
-    </header>
-
-    <section id="status-panel" aria-live="polite">
-      <p id="status">
-        Ready to start.
-      </p>
-
-      <h2 id="object-title"></h2>
-
-      <p id="object-description"></p>
-
-      <div id="controls">
-        <button id="pause-button" type="button">
-          Pause animation
-        </button>
-
-        <button id="restart-button" type="button">
-          Restart animation
-        </button>
-      </div>
-    </section>
-  </div>
-
-  <!-- Start screen -->
-  <section id="start-screen">
-    <div class="card">
-      <h2>View the exhibition in AR</h2>
-
-      <p>
-        This experience uses your phone camera to recognise visual
-        triggers placed on or near the exhibition objects.
-      </p>
-
-      <ol>
-        <li>Press “Start camera”.</li>
-        <li>Allow camera access.</li>
-        <li>Point the camera at a target image or label.</li>
-      </ol>
-
-      <button
-        id="start-button"
-        class="primary-button"
-        type="button"
-      >
-        Start camera
-      </button>
-
-      <button
-        id="show-fallback-button"
-        class="secondary-button"
-        type="button"
-      >
-        View exhibition information
-      </button>
-    </div>
-  </section>
-
-  <!-- Error screen -->
-  <section id="error-screen" class="hidden">
-    <div class="card">
-      <h2>Camera could not start</h2>
-
-      <p id="error-message" class="error-text">
-        Check the camera permission and try again.
-      </p>
-
-      <button
-        id="retry-button"
-        class="primary-button"
-        type="button"
-      >
-        Try again
-      </button>
-
-      <button
-        id="error-fallback-button"
-        class="secondary-button"
-        type="button"
-      >
-        View exhibition information
-      </button>
-    </div>
-  </section>
-
-  <!-- Non-AR fallback screen -->
-  <section id="fallback-screen" class="hidden">
-    <div class="card">
-      <h2>Exhibition information</h2>
-
-      <div id="fallback-list"></div>
-
-      <button
-        id="close-fallback-button"
-        class="primary-button"
-        type="button"
-      >
-        Return to AR
-      </button>
-    </div>
-  </section>
-
-  <script>
-    /*
-     * ============================================================
-     * Check required libraries
-     * ============================================================
-     */
-
-    let MindARThree = null;
-
-    if (
-      window.MINDAR &&
-      window.MINDAR.IMAGE &&
-      window.MINDAR.IMAGE.MindARThree
-    ) {
-      MindARThree = window.MINDAR.IMAGE.MindARThree;
-    }
-
-    /*
-     * ============================================================
-     * Student configuration
-     * ============================================================
-     *
-     * This order must match the targets in
-     * exhibition-targets.mind:
-     *
-     * Target 0 = Student 1
-     * Target 1 = Student 2
-     * Target 2 = Student 3
-     */
-
-    const students = [
-      {
-        name: "Student 1",
-        title: "Object One",
-        description: "Description of Student 1's object.",
-        model: "./models/student-01.glb",
-
-        scale: 0.20,
-        position: [0, 0, 0],
-        rotation: [0, 0, 0]
-      },
-
-      {
-        name: "Student 2",
-        title: "Object Two",
-        description: "Description of Student 2's object.",
-        model: "./models/student-02.glb",
-
-        scale: 0.20,
-        position: [0, 0, 0],
-        rotation: [0, 0, 0]
-      },
-
-      {
-        name: "Student 3",
-        title: "Object Three",
-        description: "Description of Student 3's object.",
-        model: "./models/student-03.glb",
-
-        scale: 0.20,
-        position: [0, 0, 0],
-        rotation: [0, 0, 0]
-      }
-    ];
-
-    /*
-     * ============================================================
-     * Application state
-     * ============================================================
-     */
-
-    let mindarThree = null;
-    let anchors = [];
-    let mixers = [];
-    let actions = [];
-    let activeTarget = null;
-    let animationPaused = false;
-
-    const clock = new THREE.Clock();
-
-    /*
-     * ============================================================
-     * Interface references
-     * ============================================================
-     */
-
-    const startScreen =
-      document.getElementById("start-screen");
-
-    const errorScreen =
-      document.getElementById("error-screen");
-
-    const fallbackScreen =
-      document.getElementById("fallback-screen");
-
-    const status =
-      document.getElementById("status");
-
-    const objectTitle =
-      document.getElementById("object-title");
-
-    const objectDescription =
-      document.getElementById("object-description");
-
-    const errorMessage =
-      document.getElementById("error-message");
-
-    const fallbackList =
-      document.getElementById("fallback-list");
-
-    const startButton =
-      document.getElementById("start-button");
-
-    const retryButton =
-      document.getElementById("retry-button");
-
-    const showFallbackButton =
-      document.getElementById("show-fallback-button");
-
-    const errorFallbackButton =
-      document.getElementById("error-fallback-button");
-
-    const closeFallbackButton =
-      document.getElementById("close-fallback-button");
-
-    const pauseButton =
-      document.getElementById("pause-button");
-
-    const restartButton =
-      document.getElementById("restart-button");
-
-    /*
-     * ============================================================
-     * Fallback information
-     * ============================================================
-     */
-
-    function createFallbackInformation() {
-      students.forEach((student, index) => {
-        const article = document.createElement("article");
-
-        const heading = document.createElement("strong");
-        heading.textContent =
-          `${index + 1}. ${student.name}: ${student.title}`;
-
-        const paragraph = document.createElement("p");
-        paragraph.textContent = student.description;
-
-        article.appendChild(heading);
-        article.appendChild(paragraph);
-
-        fallbackList.appendChild(article);
-      });
-    }
-
-    createFallbackInformation();
-
-    /*
-     * ============================================================
-     * User interface functions
-     * ============================================================
-     */
-
-    function showFallback() {
-      fallbackScreen.classList.remove("hidden");
-    }
-
-    function hideFallback() {
-      fallbackScreen.classList.add("hidden");
-    }
-
-    function showObjectInformation(index) {
-      const student = students[index];
-
-      if (!student) {
-        return;
-      }
-
-      activeTarget = index;
-
-      objectTitle.textContent =
-        `${student.name}: ${student.title}`;
-
-      objectDescription.textContent =
-        student.description;
-
-      objectTitle.style.display = "block";
-      objectDescription.style.display = "block";
-
-      status.textContent =
-        "Object detected — animation playing.";
-    }
-
-    function hideObjectInformation() {
-      activeTarget = null;
-
-      objectTitle.textContent = "";
-      objectDescription.textContent = "";
-
-      objectTitle.style.display = "none";
-      objectDescription.style.display = "none";
-
-      status.textContent =
-        "Point your phone at a visual trigger.";
-    }
-
-    function showError(error) {
-      let message =
-        "The camera could not start.";
-
-      if (!window.isSecureContext) {
-        message +=
-          "\n\nOpen the GitHub Pages HTTPS address, not a local file.";
-      }
-
-      if (error && error.name === "NotAllowedError") {
-        message +=
-          "\n\nCamera permission was denied. Allow camera access in your browser settings.";
-      }
-
-      if (error && error.message) {
-        message += `\n\nTechnical detail: ${error.message}`;
-      }
-
-      errorMessage.textContent = message;
-      errorScreen.classList.remove("hidden");
-    }
-
-    /*
-     * ============================================================
-     * Create AR scene
-     * ============================================================
-     */
-
-    function createScene() {
-      if (!window.THREE) {
-        throw new Error(
-          "Three.js did not load. Check your internet connection."
-        );
-      }
-
-      if (!window.THREE.GLTFLoader) {
-        throw new Error(
-          "GLTFLoader did not load. Check the script URL."
-        );
-      }
-
-      if (!MindARThree) {
-        throw new Error(
-          "MindAR did not load. Check the MindAR script URL."
-        );
-      }
-
-      mindarThree = new MindARThree({
-        container: document.getElementById("ar-container"),
-
-        /*
-         * This file must be beside index.html.
-         */
-        imageTargetSrc: "./exhibition-targets.mind",
-
-        /*
-         * Track one object at a time.
-         */
-        maxTrack: 1
-      });
-
-      const renderer = mindarThree.renderer;
-      const scene = mindarThree.scene;
-      const camera = mindarThree.camera;
-
-      renderer.setPixelRatio(
-        Math.min(window.devicePixelRatio || 1, 2)
-      );
-
-      if ("outputColorSpace" in renderer) {
-        renderer.outputColorSpace = THREE.SRGBColorSpace;
-      }
-
-      const hemisphereLight = new THREE.HemisphereLight(
-        0xffffff,
-        0x444444,
-        2
-      );
-
-      scene.add(hemisphereLight);
-
-      const directionalLight = new THREE.DirectionalLight(
-        0xffffff,
-        2
-      );
-
-      directionalLight.position.set(1, 3, 2);
-      scene.add(directionalLight);
-
-      anchors = students.map((student, index) => {
-        const anchor = mindarThree.addAnchor(index);
-
-        anchor.onTargetFound = function () {
-          showObjectInformation(index);
-        };
-
-        anchor.onTargetLost = function () {
-          if (activeTarget === index) {
-            hideObjectInformation();
-          }
-        };
-
-        return anchor;
-      });
-
-      loadModels();
-
-      renderer.setAnimationLoop(function () {
-        const delta = clock.getDelta();
-
-        if (!animationPaused) {
-          mixers.forEach(function (mixer) {
-            if (mixer) {
-              mixer.update(delta);
-            }
-          });
-        }
-
-        renderer.render(scene, camera);
-      });
-    }
-
-    /*
-     * ============================================================
-     * Load GLB models
-     * ============================================================
-     */
-
-    function loadModels() {
-      const loader = new THREE.GLTFLoader();
-
-      mixers = new Array(students.length).fill(null);
-      actions = new Array(students.length).fill(null);
-
-      students.forEach(function (student, index) {
-        loader.load(
-          student.model,
-
-          function (gltf) {
-            const model = gltf.scene;
-
-            model.scale.set(
-              student.scale,
-              student.scale,
-              student.scale
-            );
-
-            model.position.set(
-              student.position[0],
-              student.position[1],
-              student.position[2]
-            );
-
-            model.rotation.set(
-              student.rotation[0],
-              student.rotation[1],
-              student.rotation[2]
-            );
-
-            anchors[index].group.add(model);
-
-            if (
-              gltf.animations &&
-              gltf.animations.length > 0
-            ) {
-              const mixer = new THREE.AnimationMixer(model);
-              const action =
-                mixer.clipAction(gltf.animations[0]);
-
-              action.play();
-
-              mixers[index] = mixer;
-              actions[index] = action;
-            } else {
-              console.warn(
-                student.model + " contains no animation."
-              );
-            }
-          },
-
-          undefined,
-
-          function (error) {
-            console.error(
-              "Could not load " + student.model,
-              error
-            );
-
-            status.textContent =
-              "Could not load " + student.name + "'s model.";
-          }
-        );
-      });
-    }
-
-    /*
-     * ============================================================
-     * Start camera and AR
-     * ============================================================
-     */
-
-    async function startAR() {
-      startButton.disabled = true;
-      retryButton.disabled = true;
-
-      status.textContent = "Starting camera…";
-
-      try {
-        if (!window.isSecureContext) {
-          throw new Error(
-            "Camera access requires HTTPS. Open the GitHub Pages URL."
-          );
-        }
-
-        if (
-          !navigator.mediaDevices ||
-          !navigator.mediaDevices.getUserMedia
-        ) {
-          throw new Error(
-            "Camera access is unavailable. Use Safari or Chrome."
-          );
-        }
-
-        if (!mindarThree) {
-          createScene();
-        }
-
-        await mindarThree.start();
-
-        startScreen.classList.add("hidden");
-        errorScreen.classList.add("hidden");
-
-        status.textContent =
-          "Camera active. Point at a visual trigger.";
-      } catch (error) {
-        console.error("AR start error:", error);
-        showError(error);
-      } finally {
-        startButton.disabled = false;
-        retryButton.disabled = false;
-      }
-    }
-
-    /*
-     * ============================================================
-     * Animation controls
-     * ============================================================
-     */
-
-    pauseButton.addEventListener("click", function (event) {
-      event.preventDefault();
-
-      animationPaused = !animationPaused;
-
-      pauseButton.textContent = animationPaused
-        ? "Play animation"
-        : "Pause animation";
-
-      status.textContent = animationPaused
-        ? "Animation paused."
-        : "Animation playing.";
-    });
-
-    restartButton.addEventListener("click", function (event) {
-      event.preventDefault();
-
-      actions.forEach(function (action) {
-        if (action) {
-          action.reset();
-          action.play();
-        }
-      });
-
-      animationPaused = false;
-      pauseButton.textContent = "Pause animation";
-      status.textContent = "Animations restarted.";
-    });
-
-    /*
-     * ============================================================
-     * Main button events
-     * ============================================================
-     */
-
-    startButton.addEventListener("click", function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-
-      startAR();
-    });
-
-    retryButton.addEventListener("click", function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-
-      startAR();
-    });
-
-    showFallbackButton.addEventListener("click", function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-
-      showFallback();
-    });
-
-    errorFallbackButton.addEventListener("click", function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-
-      showFallback();
-    });
-
-    closeFallbackButton.addEventListener("click", function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-
-      hideFallback();
-    });
-  </script>
-</body>
-</html>
