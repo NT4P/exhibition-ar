@@ -174,3 +174,475 @@
       line-height: 1.5;
     }
     .primary-button {
+      margin-top: 14px;
+      background: #77dfff;
+      color: #071015;
+      font-weight: bold;
+    }
+    .secondary-button {
+      margin-top: 10px;
+    }
+    .error-text {
+      color: #ffabab !important;
+      white-space: pre-wrap;
+    }
+    #fallback-list article {
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+    }
+    #fallback-list article:last-child {
+      border-bottom: 0;
+    }
+    #fallback-list p {
+      margin-bottom: 0;
+    }
+    .hidden {
+      display: none !important;
+    }
+    @media (min-width: 700px) {
+      #status-panel {
+        max-width: 480px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Camera and AR scene are rendered here -->
+  <div id="ar-container"></div>
+
+  <!-- Interface shown during AR -->
+  <div id="interface">
+    <header id="header">
+      <h1>Three-Student AR Exhibition</h1>
+      <p>
+        Point your phone at the visual trigger on an exhibition object.
+      </p>
+    </header>
+    <section id="status-panel" aria-live="polite">
+      <p id="status">
+        Ready to start.
+      </p>
+      <h2 id="object-title"></h2>
+      <p id="object-description"></p>
+      <div id="controls">
+        <button id="pause-button" type="button">
+          Pause animation
+        </button>
+        <button id="restart-button" type="button">
+          Restart animation
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <!-- Start screen -->
+  <section id="start-screen">
+    <div class="card">
+      <h2>View the exhibition in AR</h2>
+      <p>
+        This experience uses your phone camera to recognise visual
+        triggers placed on or near the exhibition objects.
+      </p>
+      <ol>
+        <li>Press "Start camera".</li>
+        <li>Allow camera access.</li>
+        <li>Point the camera at a target image or label.</li>
+      </ol>
+      <button id="start-button" class="primary-button" type="button">
+        Start camera
+      </button>
+      <button id="show-fallback-button" class="secondary-button" type="button">
+        View exhibition information
+      </button>
+    </div>
+  </section>
+
+  <!-- Error screen -->
+  <section id="error-screen" class="hidden">
+    <div class="card">
+      <h2>Camera could not start</h2>
+      <p id="error-message" class="error-text">
+        Check the camera permission and try again.
+      </p>
+      <button id="retry-button" class="primary-button" type="button">
+        Try again
+      </button>
+      <button id="error-fallback-button" class="secondary-button" type="button">
+        View exhibition information
+      </button>
+    </div>
+  </section>
+
+  <!-- Non-AR fallback screen -->
+  <section id="fallback-screen" class="hidden">
+    <div class="card">
+      <h2>Exhibition information</h2>
+      <div id="fallback-list"></div>
+      <button id="close-fallback-button" class="primary-button" type="button">
+        Return to AR
+      </button>
+    </div>
+  </section>
+
+  <script type="module">
+    import * as THREE from "three";
+    import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+    /*
+     * ============================================================
+     * Check required libraries
+     * ============================================================
+     * MindAR attaches itself to window.MINDAR because it is loaded
+     * as a separate <script type="module"> tag above. By the time
+     * this module runs (modules are deferred by default), it should
+     * be available — but we still guard against failure.
+     */
+    const MindARThree =
+      window.MINDAR && window.MINDAR.IMAGE
+        ? window.MINDAR.IMAGE.MindARThree
+        : null;
+
+    /*
+     * ============================================================
+     * Student configuration
+     * ============================================================
+     *
+     * This order must match the targets in
+     * exhibition-targets.mind:
+     *
+     * Target 0 = Student 1
+     * Target 1 = Student 2
+     * Target 2 = Student 3
+     */
+    const students = [
+      {
+        name: "Student 1",
+        title: "Object One",
+        description: "Description of Student 1's object.",
+        model: "./models/student-01.glb",
+        scale: 0.20,
+        position: [0, 0, 0],
+        rotation: [0, 0, 0]
+      },
+      {
+        name: "Student 2",
+        title: "Object Two",
+        description: "Description of Student 2's object.",
+        model: "./models/student-02.glb",
+        scale: 0.20,
+        position: [0, 0, 0],
+        rotation: [0, 0, 0]
+      },
+      {
+        name: "Student 3",
+        title: "Object Three",
+        description: "Description of Student 3's object.",
+        model: "./models/student-03.glb",
+        scale: 0.20,
+        position: [0, 0, 0],
+        rotation: [0, 0, 0]
+      }
+    ];
+
+    /*
+     * ============================================================
+     * Application state
+     * ============================================================
+     */
+    let mindarThree = null;
+    let anchors = [];
+    let mixers = [];
+    let actions = [];
+    let activeTarget = null;
+    let animationPaused = false;
+    const clock = new THREE.Clock();
+
+    /*
+     * ============================================================
+     * Interface references
+     * ============================================================
+     */
+    const startScreen = document.getElementById("start-screen");
+    const errorScreen = document.getElementById("error-screen");
+    const fallbackScreen = document.getElementById("fallback-screen");
+    const status = document.getElementById("status");
+    const objectTitle = document.getElementById("object-title");
+    const objectDescription = document.getElementById("object-description");
+    const errorMessage = document.getElementById("error-message");
+    const fallbackList = document.getElementById("fallback-list");
+    const startButton = document.getElementById("start-button");
+    const retryButton = document.getElementById("retry-button");
+    const showFallbackButton = document.getElementById("show-fallback-button");
+    const errorFallbackButton = document.getElementById("error-fallback-button");
+    const closeFallbackButton = document.getElementById("close-fallback-button");
+    const pauseButton = document.getElementById("pause-button");
+    const restartButton = document.getElementById("restart-button");
+
+    /*
+     * ============================================================
+     * Fallback information
+     * ============================================================
+     */
+    function createFallbackInformation() {
+      students.forEach((student, index) => {
+        const article = document.createElement("article");
+        const heading = document.createElement("strong");
+        heading.textContent = `${index + 1}. ${student.name}: ${student.title}`;
+        const paragraph = document.createElement("p");
+        paragraph.textContent = student.description;
+        article.appendChild(heading);
+        article.appendChild(paragraph);
+        fallbackList.appendChild(article);
+      });
+    }
+    createFallbackInformation();
+
+    /*
+     * ============================================================
+     * User interface functions
+     * ============================================================
+     */
+    function showFallback() {
+      fallbackScreen.classList.remove("hidden");
+    }
+    function hideFallback() {
+      fallbackScreen.classList.add("hidden");
+    }
+    function showObjectInformation(index) {
+      const student = students[index];
+      if (!student) {
+        return;
+      }
+      activeTarget = index;
+      objectTitle.textContent = `${student.name}: ${student.title}`;
+      objectDescription.textContent = student.description;
+      objectTitle.style.display = "block";
+      objectDescription.style.display = "block";
+      status.textContent = "Object detected — animation playing.";
+    }
+    function hideObjectInformation() {
+      activeTarget = null;
+      objectTitle.textContent = "";
+      objectDescription.textContent = "";
+      objectTitle.style.display = "none";
+      objectDescription.style.display = "none";
+      status.textContent = "Point your phone at a visual trigger.";
+    }
+    function showError(error) {
+      let message = "The camera could not start.";
+      if (!window.isSecureContext) {
+        message += "\n\nOpen the GitHub Pages HTTPS address, not a local file.";
+      }
+      if (error && error.name === "NotAllowedError") {
+        message += "\n\nCamera permission was denied. Allow camera access in your browser settings.";
+      }
+      if (error && error.message) {
+        message += `\n\nTechnical detail: ${error.message}`;
+      }
+      errorMessage.textContent = message;
+      errorScreen.classList.remove("hidden");
+    }
+
+    /*
+     * ============================================================
+     * Create AR scene
+     * ============================================================
+     */
+    function createScene() {
+      if (!MindARThree) {
+        throw new Error(
+          "MindAR did not load. Check the MindAR script URL and that it is loaded as a module."
+        );
+      }
+
+      mindarThree = new MindARThree({
+        container: document.getElementById("ar-container"),
+        imageTargetSrc: "./exhibition-targets.mind",
+        maxTrack: 1
+      });
+
+      const renderer = mindarThree.renderer;
+      const scene = mindarThree.scene;
+      const camera = mindarThree.camera;
+
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      if ("outputColorSpace" in renderer) {
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+      }
+
+      const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 2);
+      scene.add(hemisphereLight);
+
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
+      directionalLight.position.set(1, 3, 2);
+      scene.add(directionalLight);
+
+      anchors = students.map((student, index) => {
+        const anchor = mindarThree.addAnchor(index);
+        anchor.onTargetFound = function () {
+          showObjectInformation(index);
+        };
+        anchor.onTargetLost = function () {
+          if (activeTarget === index) {
+            hideObjectInformation();
+          }
+        };
+        return anchor;
+      });
+
+      loadModels();
+
+      renderer.setAnimationLoop(function () {
+        const delta = clock.getDelta();
+        if (!animationPaused) {
+          mixers.forEach(function (mixer) {
+            if (mixer) {
+              mixer.update(delta);
+            }
+          });
+        }
+        renderer.render(scene, camera);
+      });
+    }
+
+    /*
+     * ============================================================
+     * Load GLB models
+     * ============================================================
+     */
+    function loadModels() {
+      const loader = new GLTFLoader();
+      mixers = new Array(students.length).fill(null);
+      actions = new Array(students.length).fill(null);
+
+      students.forEach(function (student, index) {
+        loader.load(
+          student.model,
+          function (gltf) {
+            const model = gltf.scene;
+            model.scale.set(student.scale, student.scale, student.scale);
+            model.position.set(
+              student.position[0],
+              student.position[1],
+              student.position[2]
+            );
+            model.rotation.set(
+              student.rotation[0],
+              student.rotation[1],
+              student.rotation[2]
+            );
+            anchors[index].group.add(model);
+
+            if (gltf.animations && gltf.animations.length > 0) {
+              const mixer = new THREE.AnimationMixer(model);
+              const action = mixer.clipAction(gltf.animations[0]);
+              action.play();
+              mixers[index] = mixer;
+              actions[index] = action;
+            } else {
+              console.warn(student.model + " contains no animation.");
+            }
+          },
+          undefined,
+          function (error) {
+            console.error("Could not load " + student.model, error);
+            status.textContent = "Could not load " + student.name + "'s model.";
+          }
+        );
+      });
+    }
+
+    /*
+     * ============================================================
+     * Start camera and AR
+     * ============================================================
+     */
+    async function startAR() {
+      startButton.disabled = true;
+      retryButton.disabled = true;
+      status.textContent = "Starting camera…";
+      try {
+        if (!window.isSecureContext) {
+          throw new Error(
+            "Camera access requires HTTPS. Open the GitHub Pages URL."
+          );
+        }
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error(
+            "Camera access is unavailable. Use Safari or Chrome."
+          );
+        }
+        if (!mindarThree) {
+          createScene();
+        }
+        await mindarThree.start();
+        startScreen.classList.add("hidden");
+        errorScreen.classList.add("hidden");
+        status.textContent = "Camera active. Point at a visual trigger.";
+      } catch (error) {
+        console.error("AR start error:", error);
+        showError(error);
+      } finally {
+        startButton.disabled = false;
+        retryButton.disabled = false;
+      }
+    }
+
+    /*
+     * ============================================================
+     * Animation controls
+     * ============================================================
+     */
+    pauseButton.addEventListener("click", function (event) {
+      event.preventDefault();
+      animationPaused = !animationPaused;
+      pauseButton.textContent = animationPaused ? "Play animation" : "Pause animation";
+      status.textContent = animationPaused ? "Animation paused." : "Animation playing.";
+    });
+
+    restartButton.addEventListener("click", function (event) {
+      event.preventDefault();
+      actions.forEach(function (action) {
+        if (action) {
+          action.reset();
+          action.play();
+        }
+      });
+      animationPaused = false;
+      pauseButton.textContent = "Pause animation";
+      status.textContent = "Animations restarted.";
+    });
+
+    /*
+     * ============================================================
+     * Main button events
+     * ============================================================
+     */
+    startButton.addEventListener("click", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      startAR();
+    });
+    retryButton.addEventListener("click", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      startAR();
+    });
+    showFallbackButton.addEventListener("click", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      showFallback();
+    });
+    errorFallbackButton.addEventListener("click", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      showFallback();
+    });
+    closeFallbackButton.addEventListener("click", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      hideFallback();
+    });
+  </script>
+</body>
+</html>
