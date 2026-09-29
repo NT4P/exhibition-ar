@@ -320,7 +320,7 @@
         position: [0, 0, 0],
         rotation: [0, 0, 0],
         hoverHeight: 0.15,
-        autoRotate: false,
+        autoRotate: true,
         autoRotateSpeed: 0.4,
       },
       {
@@ -332,7 +332,7 @@
         position: [0, 0, 0],
         rotation: [0, 0, 0],
         hoverHeight: 0.15,
-        autoRotate: false,
+        autoRotate: true,
         autoRotateSpeed: 0.4,
       },
       {
@@ -344,7 +344,7 @@
         position: [0, 0, 0],
         rotation: [0, 0, 0],
         hoverHeight: 0.15,
-        autoRotate: false,
+        autoRotate: true,
         autoRotateSpeed: 0.4,
       }
     ];
@@ -483,6 +483,11 @@
         container: document.getElementById("ar-container"),
         imageTargetSrc: "./exhibition-targets.mind",
         maxTrack: 1
+        filterMinCF: 0.0001,
+        filterBeta: 0.001,
+        warmupTolerance: 5,
+        missTolerance: 5,
+        
       });
 
       const renderer = mindarThree.renderer;
