@@ -315,7 +315,7 @@
         title: "Object One",
         description: "Description of Student 1's object.",
         model: "./models/student-01.glb",
-        scale: 0.2,
+        scale: 0.20,
         position: [0, 0, 0],
         rotation: [0, 0, 0],
         hoverHeight: 0.15,
@@ -327,7 +327,7 @@
         title: "Object Two",
         description: "Description of Student 2's object.",
         model: "./models/student-02.glb",
-        scale: 0.2,
+        scale: 0.20,
         position: [0, 0, 0],
         rotation: [0, 0, 0],
         hoverHeight: 0.15,
@@ -339,7 +339,7 @@
         title: "Object Three",
         description: "Description of Student 3's object.",
         model: "./models/student-03.glb",
-        scale: 0.2,
+        scale: 0.20,
         position: [0, 0, 0],
         rotation: [0, 0, 0],
         hoverHeight: 0.15,
@@ -355,13 +355,23 @@
      */
     let mindarThree = null;
     let anchors = [];
-    let smoothedGroups = [];   // one lerped group per student, added to scene
+    let smoothedGroups = [];    // one lerped group per student, added to scene
     let interactionGroups = []; // wrapper inside each smoothed group (hover + user rotation/scale)
     let mixers = [];
     let actions = [];
     let activeTarget = null;
     let animationPaused = false;
     const clock = new THREE.Clock();
+
+    /*
+     * Scratch objects reused every frame to decompose MindAR's raw
+     * anchor.group.matrix (MindAR writes pose directly to the matrix
+     * with matrixAutoUpdate = false, so .position/.quaternion/.scale
+     * on anchor.group stay at defaults and must NOT be read directly).
+     */
+    const tempPosition = new THREE.Vector3();
+    const tempQuaternion = new THREE.Quaternion();
+    const tempScale = new THREE.Vector3();
 
     /*
      * How strongly the visible model follows the raw, jittery anchor
@@ -497,9 +507,6 @@
         container: document.getElementById("ar-container"),
         imageTargetSrc: "./exhibition-targets.mind",
         maxTrack: 1
-        // Note: no filterMinCF/filterBeta overrides — smoothing is
-        // handled manually below instead, since aggressive filter
-        // values froze the model entirely.
       });
 
       const renderer = mindarThree.renderer;
@@ -530,9 +537,9 @@
         };
 
         // Smoothed group lives directly in the scene (not nested under
-        // anchor.group), and each frame we lerp it toward the anchor's
-        // raw, jittery transform. The model is attached to this group,
-        // not to anchor.group directly.
+        // anchor.group). Each frame we decompose the anchor's raw
+        // matrix and lerp this group toward it. The model attaches to
+        // this group, not to anchor.group directly.
         const smoothed = new THREE.Group();
         smoothed.visible = false;
         scene.add(smoothed);
@@ -556,16 +563,21 @@
         }
 
         // Smooth each anchor's raw pose into its corresponding group.
+        // IMPORTANT: MindAR writes pose directly into anchor.group.matrix
+        // (matrixAutoUpdate = false), so .position/.quaternion/.scale on
+        // anchor.group are NOT kept in sync automatically — they must be
+        // decomposed from the matrix each frame instead.
         students.forEach((student, index) => {
           const anchor = anchors[index];
           const smoothed = smoothedGroups[index];
           if (!anchor || !smoothed) return;
 
-          smoothed.visible = true; //anchor.group.visible;
+          smoothed.visible = anchor.group.visible;
           if (anchor.group.visible) {
-            smoothed.position.lerp(anchor.group.position, SMOOTHING);
-            smoothed.quaternion.slerp(anchor.group.quaternion, SMOOTHING);
-            smoothed.scale.lerp(anchor.group.scale, SMOOTHING);
+            anchor.group.matrix.decompose(tempPosition, tempQuaternion, tempScale);
+            smoothed.position.lerp(tempPosition, SMOOTHING);
+            smoothed.quaternion.slerp(tempQuaternion, SMOOTHING);
+            smoothed.scale.lerp(tempScale, SMOOTHING);
           }
         });
 
