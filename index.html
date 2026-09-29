@@ -561,7 +561,7 @@
           const smoothed = smoothedGroups[index];
           if (!anchor || !smoothed) return;
 
-          smoothed.visible = anchor.group.visible;
+          smoothed.visible = true; //anchor.group.visible;
           if (anchor.group.visible) {
             smoothed.position.lerp(anchor.group.position, SMOOTHING);
             smoothed.quaternion.slerp(anchor.group.quaternion, SMOOTHING);
