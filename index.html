@@ -46,7 +46,7 @@
       width: 100%;
       height: 100%;
       background: #000;
-      touch-action: none; /* allow custom drag/pinch handling without page scroll/zoom interference */
+      touch-action: none;
     }
     #interface {
       position: fixed;
@@ -304,48 +304,47 @@
      * ============================================================
      * Student configuration
      * ============================================================
-     * hoverHeight lifts the model above the flat marker plane so it
-     * appears to float above the physical embedded object rather
-     * than sitting flush on the marker surface. Adjust the axis
-     * (commonly Z, sometimes Y depending on MindAR's convention)
-     * and value per your actual installation — test on-device.
+     * hoverHeight lifts the model above the flat marker plane.
+     * autoRotate provides an idle "floating" spin, which pauses
+     * automatically while the visitor is dragging/pinching and
+     * resumes a couple of seconds after they let go.
      */
     const students = [
       {
         name: "Student 1",
         title: "Object One",
         description: "Description of Student 1's object.",
-        model: "./student-01.glb",
-        scale: 1,
+        model: "./models/student-01.glb",
+        scale: 0.20,
         position: [0, 0, 0],
         rotation: [0, 0, 0],
         hoverHeight: 0.15,
         autoRotate: true,
-        autoRotateSpeed: 0.4,
+        autoRotateSpeed: 0.4
       },
       {
         name: "Student 2",
         title: "Object Two",
         description: "Description of Student 2's object.",
-        model: "./student-02.glb",
+        model: "./models/student-02.glb",
         scale: 0.20,
         position: [0, 0, 0],
         rotation: [0, 0, 0],
         hoverHeight: 0.15,
         autoRotate: true,
-        autoRotateSpeed: 0.4,
+        autoRotateSpeed: 0.4
       },
       {
         name: "Student 3",
         title: "Object Three",
         description: "Description of Student 3's object.",
-        model: "./student-03.glb",
+        model: "./models/student-03.glb",
         scale: 0.20,
         position: [0, 0, 0],
         rotation: [0, 0, 0],
         hoverHeight: 0.15,
         autoRotate: true,
-        autoRotateSpeed: 0.4,
+        autoRotateSpeed: 0.4
       }
     ];
 
@@ -356,17 +355,23 @@
      */
     let mindarThree = null;
     let anchors = [];
+    let smoothedGroups = [];   // one lerped group per student, added to scene
+    let interactionGroups = []; // wrapper inside each smoothed group (hover + user rotation/scale)
     let mixers = [];
     let actions = [];
-    let interactionGroups = []; // one wrapper group per student, holds rotation/scale offsets
     let activeTarget = null;
     let animationPaused = false;
     const clock = new THREE.Clock();
 
     /*
+     * How strongly the visible model follows the raw, jittery anchor
+     * transform each frame. Lower = smoother but more lag. Higher =
+     * more responsive but more jitter. Tune between roughly 0.15–0.4.
+     */
+    const SMOOTHING = 0.25;
+
+    /*
      * Per-object interaction state (user drag rotation + pinch scale).
-     * Kept separate from the model's base config so "Reset view" can
-     * cleanly return to defaults without reloading the model.
      */
     function createInteractionState() {
       return {
@@ -376,6 +381,15 @@
       };
     }
     let interactionState = students.map(() => createInteractionState());
+
+    /*
+     * Tracks whether the user is currently touching the screen, and a
+     * short cooldown timer after release, so auto-rotate doesn't fight
+     * the user's own drag input.
+     */
+    let userIsInteracting = false;
+    let resumeAutoRotateAt = 0;
+    const AUTO_ROTATE_RESUME_DELAY = 2; // seconds after release
 
     /*
      * ============================================================
@@ -483,11 +497,9 @@
         container: document.getElementById("ar-container"),
         imageTargetSrc: "./exhibition-targets.mind",
         maxTrack: 1
-        filterMinCF: 0.0001,
-        filterBeta: 0.001,
-        warmupTolerance: 5,
-        missTolerance: 5
-        
+        // Note: no filterMinCF/filterBeta overrides — smoothing is
+        // handled manually below instead, since aggressive filter
+        // values froze the model entirely.
       });
 
       const renderer = mindarThree.renderer;
@@ -516,11 +528,21 @@
             hideObjectInformation();
           }
         };
+
+        // Smoothed group lives directly in the scene (not nested under
+        // anchor.group), and each frame we lerp it toward the anchor's
+        // raw, jittery transform. The model is attached to this group,
+        // not to anchor.group directly.
+        const smoothed = new THREE.Group();
+        smoothed.visible = false;
+        scene.add(smoothed);
+        smoothedGroups[index] = smoothed;
+
         return anchor;
       });
 
       loadModels();
-      setupInteraction(renderer.domElement);
+      setupInteraction(document.getElementById("ar-container"));
 
       renderer.setAnimationLoop(function () {
         const delta = clock.getDelta();
@@ -533,14 +555,35 @@
           });
         }
 
-        // Apply per-object auto-rotate (idle "floating" spin) plus any
-        // manual drag rotation and pinch scale on top of it.
+        // Smooth each anchor's raw pose into its corresponding group.
+        students.forEach((student, index) => {
+          const anchor = anchors[index];
+          const smoothed = smoothedGroups[index];
+          if (!anchor || !smoothed) return;
+
+          smoothed.visible = anchor.group.visible;
+          if (anchor.group.visible) {
+            smoothed.position.lerp(anchor.group.position, SMOOTHING);
+            smoothed.quaternion.slerp(anchor.group.quaternion, SMOOTHING);
+            smoothed.scale.lerp(anchor.group.scale, SMOOTHING);
+          }
+        });
+
+        // Apply auto-rotate (paused during + briefly after user
+        // interaction) plus manual drag rotation and pinch scale.
+        const now = clock.getElapsedTime();
         students.forEach((student, index) => {
           const group = interactionGroups[index];
           if (!group) return;
           const state = interactionState[index];
 
-          if (student.autoRotate && !animationPaused) {
+          const shouldAutoRotate =
+            student.autoRotate &&
+            !animationPaused &&
+            !userIsInteracting &&
+            now > resumeAutoRotateAt;
+
+          if (shouldAutoRotate) {
             state.rotationY += delta * student.autoRotateSpeed;
           }
 
@@ -576,8 +619,8 @@
               student.rotation[2]
             );
 
-            // Wrapper group carries the hover offset and is the target
-            // for user rotation/zoom, keeping the loaded model's own
+            // Wrapper carries the hover offset and is the target for
+            // user rotation/zoom, keeping the loaded model's own
             // transform untouched.
             const wrapper = new THREE.Group();
             wrapper.position.set(
@@ -587,7 +630,7 @@
             );
             wrapper.add(model);
 
-            anchors[index].group.add(wrapper);
+            smoothedGroups[index].add(wrapper);
             interactionGroups[index] = wrapper;
 
             if (gltf.animations && gltf.animations.length > 0) {
@@ -613,10 +656,12 @@
      * ============================================================
      * Drag-to-rotate and pinch-to-zoom
      * ============================================================
-     * Applies only to the currently detected (activeTarget) object,
-     * so gestures never affect an object that isn't in view.
+     * Attached to the #ar-container div (not renderer.domElement)
+     * so it reliably sits above MindAR's internal video/canvas
+     * layers, with preventDefault so the browser doesn't intercept
+     * the gesture for native pinch-zoom/scroll first.
      */
-    function setupInteraction(domElement) {
+    function setupInteraction(containerElement) {
       let mode = null; // "rotate" | "pinch" | null
       let lastX = 0;
       let lastY = 0;
@@ -628,8 +673,18 @@
         return Math.hypot(dx, dy);
       }
 
-      domElement.addEventListener("touchstart", function (event) {
+      function markInteracting() {
+        userIsInteracting = true;
+      }
+      function releaseInteracting() {
+        userIsInteracting = false;
+        resumeAutoRotateAt = clock.getElapsedTime() + AUTO_ROTATE_RESUME_DELAY;
+      }
+
+      containerElement.addEventListener("touchstart", function (event) {
         if (activeTarget === null) return;
+        event.preventDefault();
+        markInteracting();
         if (event.touches.length === 1) {
           mode = "rotate";
           lastX = event.touches[0].clientX;
@@ -638,10 +693,11 @@
           mode = "pinch";
           lastPinchDistance = distanceBetween(event.touches);
         }
-      }, { passive: true });
+      }, { passive: false });
 
-      domElement.addEventListener("touchmove", function (event) {
+      containerElement.addEventListener("touchmove", function (event) {
         if (activeTarget === null || mode === null) return;
+        event.preventDefault();
         const state = interactionState[activeTarget];
 
         if (mode === "rotate" && event.touches.length === 1) {
@@ -649,7 +705,6 @@
           const dy = event.touches[0].clientY - lastY;
           state.rotationY += dx * 0.008;
           state.rotationX += dy * 0.008;
-          // Clamp vertical tilt so the model can't flip upside down.
           state.rotationX = Math.max(-1, Math.min(1, state.rotationX));
           lastX = event.touches[0].clientX;
           lastY = event.touches[0].clientY;
@@ -660,18 +715,24 @@
           state.scaleMultiplier = Math.max(0.3, Math.min(3, state.scaleMultiplier));
           lastPinchDistance = distance;
         }
-      }, { passive: true });
+      }, { passive: false });
 
-      domElement.addEventListener("touchend", function (event) {
+      containerElement.addEventListener("touchend", function (event) {
+        event.preventDefault();
         if (event.touches.length === 0) {
           mode = null;
+          releaseInteracting();
         } else if (event.touches.length === 1) {
-          // Dropped from pinch to single touch — restart rotate baseline.
           mode = "rotate";
           lastX = event.touches[0].clientX;
           lastY = event.touches[0].clientY;
         }
-      }, { passive: true });
+      }, { passive: false });
+
+      containerElement.addEventListener("touchcancel", function () {
+        mode = null;
+        releaseInteracting();
+      }, { passive: false });
     }
 
     /*
